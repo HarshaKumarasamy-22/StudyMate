@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import Base, engine
-from app.routers import auth_router
+from app.routers import auth_router, documents_router
 
 logger = logging.getLogger("uvicorn")
 
@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Could not connect to database at startup: {e}")
     yield
-    # Shutdown logic if needed
+    # Shutdown logic
 
 
 app = FastAPI(
@@ -44,6 +44,7 @@ app.add_middleware(
 
 # Include Routers
 app.include_router(auth_router, prefix=settings.API_V1_STR)
+app.include_router(documents_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")
