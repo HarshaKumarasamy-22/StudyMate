@@ -6,6 +6,13 @@ from app.schemas.user import (
     Token,
     TokenPayload,
 )
+from app.schemas.document import (
+    DocumentBase,
+    DocumentCreate,
+    DocumentResponse,
+    DocumentDetailResponse,
+    DocumentChunkResponse,
+)
 
 __all__ = [
     "UserBase",
@@ -14,4 +21,9 @@ __all__ = [
     "UserResponse",
     "Token",
     "TokenPayload",
+    "DocumentBase",
+    "DocumentCreate",
+    "DocumentResponse",
+    "DocumentDetailResponse",
+    "DocumentChunkResponse",
 ]
