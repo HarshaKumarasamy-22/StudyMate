@@ -1,0 +1,6 @@
+python-interpreter-path = "backend/.venv/Scripts/python.exe"
+site-package-path = [
+  "backend/.venv/Lib/site-packages",
+  "backend",
+  "backend/app"
+]
