@@ -15,7 +15,7 @@ export default function Sidebar({
   onGoHome,
   refreshTrigger,
 }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [documents, setDocuments] = useState([]);
   const [recentChats, setRecentChats] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -67,7 +67,7 @@ export default function Sidebar({
           zIndex: 40,
           padding: "8px",
           borderRadius: "10px",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
+          boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
         }}
         title="Open Sidebar"
       >
@@ -90,8 +90,7 @@ export default function Sidebar({
         borderLeft: "none",
         borderTop: "none",
         borderBottom: "none",
-        background: "rgba(11, 15, 25, 0.92)",
-        backdropFilter: "blur(20px)",
+        background: "var(--bg-card)",
         zIndex: 40,
         flexShrink: 0,
         transition: "width 0.3s ease",
@@ -186,9 +185,9 @@ export default function Sidebar({
                     style={{
                       padding: "8px 10px",
                       borderRadius: "var(--radius-md)",
-                      background: isActive ? "rgba(99, 102, 241, 0.2)" : "transparent",
+                      background: isActive ? "var(--primary-glow)" : "transparent",
                       border: isActive ? "1px solid var(--border-highlight)" : "1px solid transparent",
-                      color: isActive ? "#fff" : "var(--text-muted)",
+                      color: isActive ? "var(--primary)" : "var(--text-main)",
                       cursor: "pointer",
                       display: "flex",
                       alignItems: "center",
@@ -197,7 +196,7 @@ export default function Sidebar({
                       position: "relative"
                     }}
                     onMouseEnter={(e) => {
-                      if (!isActive) e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                      if (!isActive) e.currentTarget.style.background = "var(--bg-glass)";
                     }}
                     onMouseLeave={(e) => {
                       if (!isActive) e.currentTarget.style.background = "transparent";
@@ -207,7 +206,7 @@ export default function Sidebar({
                       <FileText size={16} color={isActive ? "var(--primary)" : "var(--text-dim)"} style={{ flexShrink: 0 }} />
                       <span style={{
                         fontSize: "0.85rem",
-                        fontWeight: isActive ? "600" : "400",
+                        fontWeight: isActive ? "700" : "500",
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis"
@@ -295,7 +294,7 @@ export default function Sidebar({
                     transition: "all 0.15s ease"
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                    e.currentTarget.style.background = "var(--bg-glass)";
                     e.currentTarget.style.color = "var(--text-main)";
                   }}
                   onMouseLeave={(e) => {
@@ -307,6 +306,7 @@ export default function Sidebar({
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <p style={{
                       fontSize: "0.82rem",
+                      fontWeight: "500",
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -314,7 +314,7 @@ export default function Sidebar({
                     }}>
                       {chat.question}
                     </p>
-                    <span style={{ fontSize: "0.7rem", color: "var(--text-dim)" }}>
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-dim)" }}>
                       {chat.document_title}
                     </span>
                   </div>

@@ -176,7 +176,7 @@ export default function GlobalChatModal({ isOpen, onClose, onSelectDocument }) {
                       <div
                         key={sIdx}
                         style={{
-                          background: "rgba(15, 23, 42, 0.4)",
+                          background: "var(--bg-glass)",
                           padding: "12px 16px",
                           borderRadius: "var(--radius-sm)",
                           border: "1px solid var(--border-subtle)",
@@ -198,6 +198,7 @@ export default function GlobalChatModal({ isOpen, onClose, onSelectDocument }) {
                         </p>
                       </div>
                     ))}
+
                   </div>
                 </div>
               )}
