@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { X, Search, Sparkles, Send, BookOpen, FileText, ArrowRight } from "lucide-react";
 import { api } from "../services/api";
+import MarkdownRenderer from "./MarkdownRenderer";
+
 
 export default function GlobalChatModal({ isOpen, onClose, onSelectDocument }) {
   const [question, setQuestion] = useState("");
@@ -144,26 +146,44 @@ export default function GlobalChatModal({ isOpen, onClose, onSelectDocument }) {
                 padding: "20px",
                 borderRadius: "var(--radius-md)",
                 border: "1px solid var(--border-highlight)",
-                lineHeight: "1.7",
                 fontSize: "0.95rem",
-                color: "var(--text-main)",
-                whiteSpace: "pre-wrap"
+                color: "var(--text-main)"
               }}>
                 <div style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "8px",
+                  justifyContent: "space-between",
                   marginBottom: "12px",
-                  color: "var(--primary)",
-                  fontWeight: "700",
-                  fontSize: "0.85rem",
-                  textTransform: "uppercase"
+                  paddingBottom: "8px",
+                  borderBottom: "1px solid var(--border-subtle)",
                 }}>
-                  <Sparkles size={16} />
-                  <span>Synthesized AI Answer</span>
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    color: "var(--primary)",
+                    fontWeight: "700",
+                    fontSize: "0.85rem",
+                    textTransform: "uppercase"
+                  }}>
+                    <Sparkles size={16} />
+                    <span>Synthesized AI Answer</span>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(results.answer);
+                      alert("Answer copied to clipboard!");
+                    }}
+                    className="btn-secondary"
+                    style={{ padding: "4px 8px", fontSize: "0.75rem", background: "var(--bg-card)" }}
+                  >
+                    Copy Answer
+                  </button>
                 </div>
-                {results.answer}
+                <MarkdownRenderer content={results.answer} />
               </div>
+
 
               {/* Citations / Sources */}
               {results.sources && results.sources.length > 0 && (

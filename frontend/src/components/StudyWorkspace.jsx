@@ -8,6 +8,8 @@ import {
 import confetti from "canvas-confetti";
 import { api } from "../services/api";
 import PdfViewer from "./PdfViewer";
+import ChatMessageBubble from "./ChatMessageBubble";
+
 
 export default function StudyWorkspace({ document, onBack }) {
   const [activeTab, setActiveTab] = useState("chat"); // 'chat' | 'summary' | 'quiz' | 'flashcards'
@@ -510,74 +512,17 @@ export default function StudyWorkspace({ document, onBack }) {
                   </div>
                 ) : (
                   messages.map((msg, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: msg.role === "user" ? "flex-end" : "flex-start"
+                    <ChatMessageBubble
+                      key={msg.id || idx}
+                      msg={msg}
+                      onPageClick={(pageNum) => {
+                        setTargetPage(pageNum);
+                        if (!splitView) setSplitView(true);
                       }}
-                    >
-                      <div style={{
-                        maxWidth: "88%",
-                        padding: "12px 16px",
-                        borderRadius: "16px",
-                        background: msg.role === "user"
-                          ? "linear-gradient(135deg, var(--primary), var(--secondary))"
-                          : "var(--bg-glass)",
-                        color: msg.role === "user" ? "#fff" : "var(--text-main)",
-                        border: msg.role === "assistant" ? "1px solid var(--border-subtle)" : "none",
-                        boxShadow: "0 4px 14px rgba(0,0,0,0.06)",
-                        fontSize: "0.92rem",
-                        lineHeight: "1.6",
-                        whiteSpace: "pre-wrap"
-                      }}>
-                        {msg.content}
-
-                        {/* Citations / Sources Badge */}
-                        {msg.sources && msg.sources.length > 0 && (
-                          <div style={{
-                            marginTop: "10px",
-                            paddingTop: "8px",
-                            borderTop: "1px solid var(--border-subtle)",
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: "6px",
-                            alignItems: "center"
-                          }}>
-                            <span style={{ fontSize: "0.72rem", color: "var(--text-dim)", fontWeight: "600" }}>
-                              📍 Citations:
-                            </span>
-                            {msg.sources.map((s, sIdx) => (
-                              <button
-                                key={sIdx}
-                                onClick={() => {
-                                  if (s.page_number) {
-                                    setTargetPage(s.page_number);
-                                    if (!splitView) setSplitView(true);
-                                  }
-                                }}
-                                title={`Click to jump to page ${s.page_number} in PDF viewer`}
-                                style={{
-                                  background: "var(--primary-glow)",
-                                  color: "var(--primary)",
-                                  padding: "2px 8px",
-                                  borderRadius: "6px",
-                                  fontSize: "0.72rem",
-                                  fontWeight: "700",
-                                  border: "1px solid var(--border-highlight)",
-                                  cursor: "pointer"
-                                }}
-                              >
-                                Page {s.page_number || "1"} ↗
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    />
                   ))
                 )}
+
 
                 {chatLoading && (
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--text-dim)" }}>
