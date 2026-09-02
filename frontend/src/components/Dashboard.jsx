@@ -2,15 +2,17 @@ import React, { useState, useEffect } from "react";
 import { 
   UploadCloud, FileText, Trash2, ArrowRight, BookOpen, 
   Sparkles, Clock, Search, BrainCircuit, Tag, Globe,
-  Award, Layers, CheckCircle
+  Award, Layers, CheckCircle, Lock, LogIn
 } from "lucide-react";
 import { api } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import GlobalChatModal from "./GlobalChatModal";
 
 export default function Dashboard({ onSelectDocument, onRequireAuth }) {
+  const { isAuthenticated, user } = useAuth();
   const [documents, setDocuments] = useState([]);
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -22,6 +24,12 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
   const [globalChatOpen, setGlobalChatOpen] = useState(false);
 
   const loadData = async () => {
+    if (!isAuthenticated) {
+      setDocuments([]);
+      setStats(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -33,7 +41,8 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
       setStats(userStats);
     } catch (err) {
       if (err.message.includes("401") || err.message.includes("validate credentials")) {
-        onRequireAuth();
+        setDocuments([]);
+        setStats(null);
       } else {
         setError(err.message || "Failed to load documents");
       }
@@ -43,12 +52,19 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isAuthenticated) {
+      loadData();
+    } else {
+      setDocuments([]);
+      setStats(null);
+      setLoading(false);
+    }
+  }, [isAuthenticated, user]);
 
   const handleDrag = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!isAuthenticated) return;
     if (e.type === "dragenter" || e.type === "dragover") {
       setDragActive(true);
     } else if (e.type === "dragleave") {
@@ -60,6 +76,10 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
+    if (!isAuthenticated) {
+      onRequireAuth();
+      return;
+    }
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
       if (file.name.toLowerCase().endsWith(".pdf")) {
@@ -72,6 +92,10 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
   };
 
   const handleFileChange = (e) => {
+    if (!isAuthenticated) {
+      onRequireAuth();
+      return;
+    }
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.name.toLowerCase().endsWith(".pdf")) {
@@ -85,6 +109,10 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
 
   const handleUpload = async (e) => {
     e.preventDefault();
+    if (!isAuthenticated) {
+      onRequireAuth();
+      return;
+    }
     if (!selectedFile) return;
 
     setUploading(true);
@@ -127,6 +155,117 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
     return matchesSearch && matchesTag;
   });
 
+  // Guest Unauthenticated View
+  if (!isAuthenticated) {
+    return (
+      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "60px 20px", textAlign: "center" }}>
+        <div style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "8px",
+          background: "var(--primary-glow)",
+          color: "var(--primary)",
+          padding: "6px 16px",
+          borderRadius: "var(--radius-full)",
+          fontSize: "0.85rem",
+          fontWeight: "700",
+          marginBottom: "20px",
+          border: "1px solid var(--border-highlight)"
+        }}>
+          <Sparkles size={16} />
+          <span>AI-Powered RAG Study Assistant</span>
+        </div>
+
+        <h1 style={{ fontSize: "2.8rem", maxWidth: "800px", margin: "0 auto 16px", lineHeight: "1.2" }}>
+          Supercharge Your Learning with Intelligent PDF Study Spaces 🎓
+        </h1>
+
+        <p style={{ color: "var(--text-muted)", fontSize: "1.15rem", maxWidth: "680px", margin: "0 auto 36px" }}>
+          Upload any lecture notes, textbook, or exam syllabus. StudyMate automatically chunks your PDFs, computes vector embeddings, and delivers answers with exact page citations, instant quizzes, and 3D flashcards.
+        </p>
+
+        <button
+          onClick={onRequireAuth}
+          className="btn-primary"
+          style={{ padding: "14px 32px", fontSize: "1.05rem", borderRadius: "var(--radius-full)" }}
+        >
+          <LogIn size={20} />
+          <span>Sign In / Sign Up to Get Started</span>
+        </button>
+
+        {/* Feature Highlights Grid */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: "24px",
+          marginTop: "60px",
+          textAlign: "left"
+        }}>
+          <div className="glass-panel" style={{ padding: "26px" }}>
+            <div style={{
+              width: "44px",
+              height: "44px",
+              borderRadius: "12px",
+              background: "var(--primary-glow)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--primary)",
+              marginBottom: "16px"
+            }}>
+              <BrainCircuit size={22} />
+            </div>
+            <h3 style={{ fontSize: "1.2rem", marginBottom: "8px" }}>Grounded RAG Chat</h3>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
+              Ask questions and get answers synthesized directly from your PDF with clickable page citations.
+            </p>
+          </div>
+
+          <div className="glass-panel" style={{ padding: "26px" }}>
+            <div style={{
+              width: "44px",
+              height: "44px",
+              borderRadius: "12px",
+              background: "rgba(168, 85, 247, 0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--secondary)",
+              marginBottom: "16px"
+            }}>
+              <Award size={22} />
+            </div>
+            <h3 style={{ fontSize: "1.2rem", marginBottom: "8px" }}>AI MCQ Practice Tests</h3>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
+              Generate exam-style quizzes with real-time scoring, instant explanations, and printable exam sheets.
+            </p>
+          </div>
+
+          <div className="glass-panel" style={{ padding: "26px" }}>
+            <div style={{
+              width: "44px",
+              height: "44px",
+              borderRadius: "12px",
+              background: "rgba(16, 185, 129, 0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#10b981",
+              marginBottom: "16px"
+            }}>
+              <Layers size={22} />
+            </div>
+            <h3 style={{ fontSize: "1.2rem", marginBottom: "8px" }}>3D Active Recall Cards</h3>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
+              Master complex formulas, definitions, and concepts through interactive 3D flip card decks.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Authenticated Dashboard View
   return (
     <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "32px 20px" }}>
       {/* Top Banner with Quick Actions */}
@@ -143,20 +282,20 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
             display: "inline-flex",
             alignItems: "center",
             gap: "8px",
-            background: "rgba(99, 102, 241, 0.15)",
+            background: "var(--primary-glow)",
             color: "var(--primary)",
             padding: "6px 14px",
             borderRadius: "var(--radius-full)",
             fontSize: "0.85rem",
-            fontWeight: "600",
+            fontWeight: "700",
             marginBottom: "12px",
-            border: "1px solid rgba(99, 102, 241, 0.25)"
+            border: "1px solid var(--border-highlight)"
           }}>
             <Sparkles size={16} />
             <span>AI-Powered Study Workspace</span>
           </div>
           <h1 style={{ fontSize: "2.4rem", letterSpacing: "-0.02em" }}>
-            Transform Notes into Interactive Mastery 📚
+            Welcome back, {user?.username || "Scholar"}! 📚
           </h1>
           <p style={{ color: "var(--text-muted)", fontSize: "1.05rem", marginTop: "8px" }}>
             Upload PDFs, ask questions with page citations, generate instant quizzes, and search across your entire library.
@@ -187,7 +326,7 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
               width: "46px",
               height: "46px",
               borderRadius: "12px",
-              background: "rgba(99, 102, 241, 0.15)",
+              background: "var(--primary-glow)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -196,7 +335,7 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
               <BookOpen size={22} />
             </div>
             <div>
-              <div style={{ fontSize: "1.5rem", fontWeight: "800" }}>{stats.total_documents}</div>
+              <div style={{ fontSize: "1.5rem", fontWeight: "800", color: "var(--text-main)" }}>{stats.total_documents}</div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-dim)" }}>Documents Indexed</div>
             </div>
           </div>
@@ -215,7 +354,7 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
               <Sparkles size={22} />
             </div>
             <div>
-              <div style={{ fontSize: "1.5rem", fontWeight: "800" }}>{stats.total_questions_asked}</div>
+              <div style={{ fontSize: "1.5rem", fontWeight: "800", color: "var(--text-main)" }}>{stats.total_questions_asked}</div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-dim)" }}>AI Questions Asked</div>
             </div>
           </div>
@@ -234,7 +373,7 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
               <Award size={22} />
             </div>
             <div>
-              <div style={{ fontSize: "1.5rem", fontWeight: "800" }}>{stats.total_quizzes_taken}</div>
+              <div style={{ fontSize: "1.5rem", fontWeight: "800", color: "var(--text-main)" }}>{stats.total_quizzes_taken}</div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-dim)" }}>Quizzes Completed</div>
             </div>
           </div>
@@ -253,7 +392,7 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
               <Layers size={22} />
             </div>
             <div>
-              <div style={{ fontSize: "1.5rem", fontWeight: "800" }}>{stats.total_flashcard_decks}</div>
+              <div style={{ fontSize: "1.5rem", fontWeight: "800", color: "var(--text-main)" }}>{stats.total_flashcard_decks}</div>
               <div style={{ fontSize: "0.8rem", color: "var(--text-dim)" }}>Flashcard Decks</div>
             </div>
           </div>
@@ -269,9 +408,9 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
 
         {error && (
           <div style={{
-            background: "rgba(244, 63, 94, 0.15)",
-            border: "1px solid rgba(244, 63, 94, 0.3)",
-            color: "#fb7185",
+            background: "rgba(244, 63, 94, 0.12)",
+            border: "1px solid rgba(244, 63, 94, 0.25)",
+            color: "#e11d48",
             padding: "10px 14px",
             borderRadius: "var(--radius-md)",
             marginBottom: "16px",
@@ -292,7 +431,7 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
               borderRadius: "var(--radius-lg)",
               padding: "36px 20px",
               textAlign: "center",
-              background: dragActive ? "rgba(99, 102, 241, 0.08)" : "var(--bg-glass)",
+              background: dragActive ? "var(--primary-glow)" : "var(--bg-glass)",
               cursor: "pointer",
               transition: "all 0.2s ease"
             }}
@@ -309,7 +448,7 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
               width: "52px",
               height: "52px",
               borderRadius: "50%",
-              background: "rgba(99, 102, 241, 0.15)",
+              background: "var(--primary-glow)",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
@@ -320,7 +459,7 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
 
             {selectedFile ? (
               <div>
-                <p style={{ fontWeight: "600", color: "var(--text-main)", fontSize: "1.05rem" }}>
+                <p style={{ fontWeight: "700", color: "var(--text-main)", fontSize: "1.05rem" }}>
                   {selectedFile.name}
                 </p>
                 <p style={{ color: "var(--text-dim)", fontSize: "0.85rem", marginTop: "4px" }}>
@@ -329,7 +468,7 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
               </div>
             ) : (
               <div>
-                <p style={{ fontWeight: "600", fontSize: "1rem" }}>
+                <p style={{ fontWeight: "600", fontSize: "1rem", color: "var(--text-main)" }}>
                   Drag & Drop your PDF here, or <span style={{ color: "var(--primary)" }}>Browse</span>
                 </p>
                 <p style={{ color: "var(--text-dim)", fontSize: "0.85rem", marginTop: "4px" }}>
@@ -495,12 +634,11 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = "translateY(-4px)";
                 e.currentTarget.style.borderColor = "var(--border-highlight)";
-                e.currentTarget.style.boxShadow = "0 12px 30px -8px var(--primary-glow)";
+                e.currentTarget.style.boxShadow = "var(--card-shadow)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "translateY(0)";
                 e.currentTarget.style.borderColor = "var(--border-subtle)";
-                e.currentTarget.style.boxShadow = "none";
               }}
             >
               <div>
@@ -514,7 +652,7 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
                     width: "42px",
                     height: "42px",
                     borderRadius: "12px",
-                    background: "rgba(99, 102, 241, 0.15)",
+                    background: "var(--primary-glow)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center"
@@ -532,7 +670,7 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
                   </button>
                 </div>
 
-                <h3 style={{ fontSize: "1.2rem", marginBottom: "6px" }}>
+                <h3 style={{ fontSize: "1.2rem", marginBottom: "6px", color: "var(--text-main)" }}>
                   {doc.title}
                 </h3>
                 <p style={{ color: "var(--text-dim)", fontSize: "0.85rem", wordBreak: "break-all" }}>
@@ -554,7 +692,8 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
                           border: "1px solid var(--border-subtle)",
                           display: "inline-flex",
                           alignItems: "center",
-                          gap: "4px"
+                          gap: "4px",
+                          fontWeight: "600"
                         }}
                       >
                         <Tag size={10} />
@@ -599,7 +738,7 @@ export default function Dashboard({ onSelectDocument, onRequireAuth }) {
                   paddingTop: "14px",
                   borderTop: "1px solid var(--border-subtle)",
                   color: "var(--primary)",
-                  fontWeight: "600",
+                  fontWeight: "700",
                   fontSize: "0.95rem"
                 }}>
                   <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
