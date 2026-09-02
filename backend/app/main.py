@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import Base, engine
-from app.routers import auth_router, documents_router
+from app.routers import auth_router, documents_router, study_router
 
 logger = logging.getLogger("uvicorn")
 
@@ -45,6 +45,7 @@ app.add_middleware(
 # Include Routers
 app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(documents_router, prefix=settings.API_V1_STR)
+app.include_router(study_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")
