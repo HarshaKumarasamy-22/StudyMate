@@ -1,5 +1,6 @@
 from app.routers.auth import router as auth_router
 from app.routers.documents import router as documents_router
 from app.routers.study import router as study_router
+from app.routers.analytics import router as analytics_router
 
-__all__ = ["auth_router", "documents_router", "study_router"]
+__all__ = ["auth_router", "documents_router", "study_router", "analytics_router"]

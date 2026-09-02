@@ -67,16 +67,23 @@ export const api = {
       });
       return handleResponse(res);
     },
-    upload: async (file, title) => {
+    upload: async (file, title, tags) => {
       const formData = new FormData();
       formData.append("file", file);
-      if (title) {
-        formData.append("title", title);
-      }
+      if (title) formData.append("title", title);
+      if (tags) formData.append("tags", tags);
       const res = await fetch(`${API_BASE_URL}/documents/upload`, {
         method: "POST",
         headers: getHeaders(true),
         body: formData,
+      });
+      return handleResponse(res);
+    },
+    updateTags: async (id, tags) => {
+      const res = await fetch(`${API_BASE_URL}/documents/${id}/tags`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({ tags }),
       });
       return handleResponse(res);
     },
@@ -91,12 +98,27 @@ export const api = {
 
   // --- AI Study APIs ---
   study: {
-    // Chat
+    // Single Document Chat
     chat: async (documentId, question) => {
       const res = await fetch(`${API_BASE_URL}/study/${documentId}/chat`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify({ question }),
+      });
+      return handleResponse(res);
+    },
+    // Cross-Document Global Chat
+    globalChat: async (question) => {
+      const res = await fetch(`${API_BASE_URL}/study/global-chat`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({ question }),
+      });
+      return handleResponse(res);
+    },
+    getRecentChats: async () => {
+      const res = await fetch(`${API_BASE_URL}/study/chats/recent`, {
+        headers: getHeaders(),
       });
       return handleResponse(res);
     },
@@ -109,6 +131,15 @@ export const api = {
     clearChatHistory: async (documentId) => {
       const res = await fetch(`${API_BASE_URL}/study/${documentId}/chat/history`, {
         method: "DELETE",
+        headers: getHeaders(),
+      });
+      return handleResponse(res);
+    },
+
+    // Summarization
+    summarize: async (documentId) => {
+      const res = await fetch(`${API_BASE_URL}/study/${documentId}/summarize`, {
+        method: "POST",
         headers: getHeaders(),
       });
       return handleResponse(res);
@@ -161,6 +192,16 @@ export const api = {
     },
     getFlashcardSet: async (flashcardId) => {
       const res = await fetch(`${API_BASE_URL}/study/flashcards/${flashcardId}`, {
+        headers: getHeaders(),
+      });
+      return handleResponse(res);
+    },
+  },
+
+  // --- Analytics APIs ---
+  analytics: {
+    getStats: async () => {
+      const res = await fetch(`${API_BASE_URL}/analytics/stats`, {
         headers: getHeaders(),
       });
       return handleResponse(res);

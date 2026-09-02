@@ -31,6 +31,37 @@ class ChatMessageResponse(BaseModel):
         from_attributes = True
 
 
+# --- Cross-Document Global Chat Schemas ---
+class GlobalChatRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=2000)
+
+
+class GlobalChatSourceItem(BaseModel):
+    document_id: int
+    document_title: str
+    page_number: Optional[int] = None
+    content: str
+
+
+class GlobalChatResponse(BaseModel):
+    answer: str
+    sources: List[GlobalChatSourceItem] = []
+
+
+# --- Summarization Schemas ---
+class SummarySection(BaseModel):
+    title: str
+    content: str
+
+
+class SummaryResponse(BaseModel):
+    document_id: int
+    executive_summary: str
+    key_concepts: List[str] = []
+    takeaways: List[str] = []
+    sections: Optional[List[SummarySection]] = []
+
+
 # --- Quiz Schemas ---
 class QuizQuestion(BaseModel):
     question: str
@@ -56,7 +87,6 @@ class QuizResponse(BaseModel):
 
 
 class QuizSubmitRequest(BaseModel):
-    # Mapping of question index to chosen option string
     answers: dict[int, str]
 
 
@@ -69,8 +99,8 @@ class QuizScoreResult(BaseModel):
 
 # --- Flashcard Schemas ---
 class FlashcardItem(BaseModel):
-    front: str  # Question or Term
-    back: str  # Answer or Definition
+    front: str
+    back: str
 
 
 class FlashcardGenerateRequest(BaseModel):
@@ -86,3 +116,12 @@ class FlashcardSetResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# --- Analytics Stats Schema ---
+class AnalyticsStatsResponse(BaseModel):
+    total_documents: int
+    total_questions_asked: int
+    total_quizzes_taken: int
+    avg_quiz_score: float
+    total_flashcard_decks: int

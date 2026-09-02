@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, JSON
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -15,6 +15,8 @@ class Document(Base):
     file_path = Column(String, nullable=False)
     file_size = Column(Integer, nullable=False)  # in bytes
     num_pages = Column(Integer, default=0)
+    tags = Column(JSON, default=list, nullable=True)  # e.g. ["Computer Science", "Chapter 1"]
+    summary = Column(JSON, nullable=True)  # Cached AI summary
     created_at = Column(
         DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
     )
