@@ -3,7 +3,7 @@ from typing import Any, List
 from sqlalchemy.orm import Session
 from app.models.document import Document, DocumentChunk
 from app.models.study import ChatMessage, FlashcardSet, Quiz
-from app.services.vector_service import get_llm_client, search_similar_chunks
+from app.services.vector_service import get_llm_client, get_single_embedding, search_similar_chunks
 
 
 def ask_document_question(
@@ -13,13 +13,8 @@ def ask_document_question(
     question: str,
 ) -> dict[str, Any]:
     """
-    RAG QA pipeline:
-    1. Retrieve top matching chunks using vector similarity.
-    2. Build context prompt.
-    3. Call LLM (Groq / OpenAI).
-    4. Store history in ChatMessage table.
+    RAG QA pipeline for a single document.
     """
-    # 1. Retrieve top similar chunks
     similar_chunks = search_similar_chunks(db, document.id, question, top_k=4)
 
     context_parts: list[str] = []
@@ -38,7 +33,6 @@ def ask_document_question(
 
     context_text = "\n\n".join(context_parts) if context_parts else "No specific context found."
 
-    # 2. System and User messages
     system_prompt = (
         "You are StudyMate, an expert, encouraging, and clear AI study assistant. "
         "Answer the student's question accurately using ONLY the provided document context whenever possible. "
@@ -49,7 +43,6 @@ def ask_document_question(
 
     user_prompt = f"Document Title: {document.title}\n\nContext:\n{context_text}\n\nQuestion: {question}"
 
-    # 3. Call LLM client
     client, model_name = get_llm_client()
     response = client.chat.completions.create(
         model=model_name,
@@ -61,7 +54,7 @@ def ask_document_question(
     )
     answer = response.choices[0].message.content or "No response generated."
 
-    # 4. Save conversation to ChatMessage table
+    # Save to ChatMessage table
     user_msg = ChatMessage(
         user_id=user_id,
         document_id=document.id,
@@ -81,6 +74,129 @@ def ask_document_question(
     db.commit()
 
     return {"answer": answer, "sources": sources}
+
+
+def multi_document_chat(
+    db: Session,
+    user_id: int,
+    question: str,
+    top_k: int = 6,
+) -> dict[str, Any]:
+    """
+    Cross-document RAG search: Searches across ALL documents owned by the user.
+    """
+    query_vector = get_single_embedding(question)
+
+    # Search top chunks across all user documents
+    chunks = (
+        db.query(DocumentChunk, Document)
+        .join(Document, DocumentChunk.document_id == Document.id)
+        .filter(Document.user_id == user_id)
+        .order_by(DocumentChunk.embedding.cosine_distance(query_vector))
+        .limit(top_k)
+        .all()
+    )
+
+    context_parts: list[str] = []
+    sources: list[dict[str, Any]] = []
+
+    for chunk, doc in chunks:
+        page_info = f" (Page {chunk.page_number})" if chunk.page_number else ""
+        context_parts.append(f"--- Document: {doc.title}{page_info} ---\n{chunk.content}")
+        sources.append(
+            {
+                "document_id": doc.id,
+                "document_title": doc.title,
+                "page_number": chunk.page_number,
+                "content": chunk.content[:200] + "..." if len(chunk.content) > 200 else chunk.content,
+            }
+        )
+
+    context_text = "\n\n".join(context_parts) if context_parts else "No specific documents or context found."
+
+    system_prompt = (
+        "You are StudyMate Global AI. You search and answer across the student's entire library of study documents. "
+        "Synthesize an answer using the provided context chunks. ALWAYS cite the exact Document Title and Page Number for each fact. "
+        "Format with clear headings, bullet points, and highlight connections between different documents when relevant."
+    )
+
+    user_prompt = f"Context from Student's Library:\n{context_text}\n\nGlobal Question: {question}"
+
+    client, model_name = get_llm_client()
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.3,
+    )
+    answer = response.choices[0].message.content or "No response generated."
+
+    return {"answer": answer, "sources": sources}
+
+
+def summarize_document(
+    db: Session,
+    document: Document,
+    user_id: int,
+) -> dict[str, Any]:
+    """
+    Generate a comprehensive structured summary of a document.
+    """
+    # Check if cached summary already exists
+    if document.summary:
+        return document.summary
+
+    chunks = (
+        db.query(DocumentChunk)
+        .filter(DocumentChunk.document_id == document.id)
+        .order_by(DocumentChunk.chunk_index.asc())
+        .limit(12)
+        .all()
+    )
+
+    if not chunks:
+        raise ValueError("Document has no text content to summarize.")
+
+    sample_text = "\n\n".join([f"Page {c.page_number}: {c.content}" for c in chunks])
+
+    system_prompt = (
+        "You are an academic summarization engine. Create a high quality structured study summary "
+        "of the provided document content. Return JSON strictly in the following format:\n"
+        "{\n"
+        '  "executive_summary": "A clear, concise 2-3 paragraph overview of the core topic.",\n'
+        '  "key_concepts": ["Concept 1: Definition", "Concept 2: Formula/Principle", "Concept 3: ..."],\n'
+        '  "takeaways": ["High yield exam point 1", "Key takeaway 2", "Important distinction 3"],\n'
+        '  "sections": [\n'
+        '    {"title": "Section Title 1", "content": "Summary of section 1..."},\n'
+        '    {"title": "Section Title 2", "content": "Summary of section 2..."}\n'
+        "  ]\n"
+        "}"
+    )
+
+    user_prompt = f"Document Title: {document.title}\n\nContent:\n{sample_text}"
+
+    client, model_name = get_llm_client()
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.3,
+    )
+
+    raw_json = response.choices[0].message.content
+    summary_data = json.loads(raw_json)
+    summary_data["document_id"] = document.id
+
+    # Cache summary in document record
+    document.summary = summary_data
+    db.commit()
+
+    return summary_data
 
 
 def generate_quiz(

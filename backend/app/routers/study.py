@@ -11,17 +11,23 @@ from app.schemas.study import (
     ChatResponse,
     FlashcardGenerateRequest,
     FlashcardSetResponse,
+    GlobalChatRequest,
+    GlobalChatResponse,
     QuizGenerateRequest,
     QuizResponse,
     QuizScoreResult,
     QuizSubmitRequest,
+    SummaryResponse,
 )
 from app.services.study_service import (
     ask_document_question,
     generate_flashcards,
     generate_quiz,
+    multi_document_chat,
+    summarize_document,
 )
 from app.utils.deps import get_current_user
+
 
 router = APIRouter(prefix="/study", tags=["AI Study Assistant"])
 
@@ -79,10 +85,58 @@ def get_recent_chats(
 
 
 @router.post(
+    "/global-chat",
+    response_model=GlobalChatResponse,
+    summary="Ask an AI question across the student's entire study library",
+)
+def chat_across_library(
+    query_in: GlobalChatRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Search and answer questions across all uploaded study documents."""
+    try:
+        result = multi_document_chat(
+            db=db,
+            user_id=current_user.id,
+            question=query_in.question,
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error performing global search: {str(e)}",
+        )
+
+
+@router.post(
+    "/{document_id}/summarize",
+    response_model=SummaryResponse,
+    summary="Generate or retrieve a structured academic summary of a document",
+)
+def get_document_summary(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate executive summary, key concepts, and takeaways from document."""
+    doc = _get_user_document(db, document_id, current_user.id)
+    try:
+        summary_result = summarize_document(db, doc, current_user.id)
+        return summary_result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate summary: {str(e)}",
+        )
+
+
+@router.post(
     "/{document_id}/chat",
     response_model=ChatResponse,
     summary="Ask an AI question about a specific document",
 )
+
 def chat_with_document(
     document_id: int,
     query_in: ChatQueryRequest,

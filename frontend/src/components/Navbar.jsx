@@ -1,19 +1,29 @@
-import React from "react";
-import { GraduationCap, LogOut, User, Sparkles, BookOpen } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { GraduationCap, LogOut, User, Sun, Moon } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 export default function Navbar({ onOpenAuth, onGoHome, currentView }) {
   const { user, isAuthenticated, logout } = useAuth();
+  const [theme, setTheme] = useState(localStorage.getItem("studymate_theme") || "dark");
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("studymate_theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  };
 
   return (
     <header style={{
       borderBottom: "1px solid var(--border-subtle)",
-      background: "rgba(11, 15, 25, 0.8)",
-      backdropFilter: "blur(12px)",
+      background: "var(--bg-card)",
+      backdropFilter: "blur(14px)",
       position: "sticky",
       top: 0,
       zIndex: 50,
-      padding: "16px 24px"
+      padding: "14px 24px"
     }}>
       <div style={{
         maxWidth: "1300px",
@@ -49,7 +59,7 @@ export default function Navbar({ onOpenAuth, onGoHome, currentView }) {
                 fontFamily: "var(--font-heading)",
                 fontSize: "1.35rem",
                 fontWeight: "800",
-                background: "linear-gradient(to right, #fff, #c7d2fe)",
+                background: "linear-gradient(to right, var(--primary), var(--secondary))",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent"
               }}>
@@ -58,7 +68,7 @@ export default function Navbar({ onOpenAuth, onGoHome, currentView }) {
               <span style={{
                 fontSize: "0.7rem",
                 background: "rgba(99, 102, 241, 0.2)",
-                color: "#818cf8",
+                color: "var(--primary)",
                 padding: "2px 8px",
                 borderRadius: "12px",
                 fontWeight: "600",
@@ -73,8 +83,34 @@ export default function Navbar({ onOpenAuth, onGoHome, currentView }) {
           </div>
         </div>
 
-        {/* User Navigation / Auth state */}
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+        {/* User Navigation / Theme Toggle & Auth state */}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {/* Light / Dark Mode Toggle Button */}
+          <button
+            onClick={toggleTheme}
+            className="btn-secondary"
+            style={{
+              padding: "8px 12px",
+              borderRadius: "var(--radius-full)",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px"
+            }}
+            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {theme === "dark" ? (
+              <>
+                <Sun size={16} color="#fbbf24" />
+                <span style={{ fontSize: "0.8rem" }}>Light</span>
+              </>
+            ) : (
+              <>
+                <Moon size={16} color="#6366f1" />
+                <span style={{ fontSize: "0.8rem" }}>Dark</span>
+              </>
+            )}
+          </button>
+
           {isAuthenticated ? (
             <>
               <div style={{
@@ -94,13 +130,14 @@ export default function Navbar({ onOpenAuth, onGoHome, currentView }) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  color: "#fff",
                   fontWeight: "bold",
                   fontSize: "0.85rem"
                 }}>
                   {user?.username?.charAt(0).toUpperCase() || "U"}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                  <span style={{ fontSize: "0.85rem", fontWeight: "600" }}>
+                  <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--text-main)" }}>
                     {user?.username}
                   </span>
                   <span style={{ fontSize: "0.7rem", color: "var(--text-dim)" }}>

@@ -2,19 +2,25 @@ import React, { useState, useEffect } from "react";
 import {
   ArrowLeft, MessageSquare, HelpCircle, Layers, Sparkles, Send,
   RefreshCw, CheckCircle2, XCircle, ChevronLeft, ChevronRight,
-  RotateCw, Award, BookOpen, AlertCircle, FileText
+  RotateCw, Award, BookOpen, FileText, Download, Printer, Copy,
+  Check, ListFilter, Bookmark
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { api } from "../services/api";
 
 export default function StudyWorkspace({ document, onBack }) {
-  const [activeTab, setActiveTab] = useState("chat"); // 'chat' | 'quiz' | 'flashcards'
+  const [activeTab, setActiveTab] = useState("chat"); // 'chat' | 'summary' | 'quiz' | 'flashcards'
 
   // --- Chat State ---
   const [messages, setMessages] = useState([]);
   const [question, setQuestion] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState("");
+
+  // --- Summary State ---
+  const [summary, setSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [copiedSummary, setCopiedSummary] = useState(false);
 
   // --- Quiz State ---
   const [quizzes, setQuizzes] = useState([]);
@@ -34,11 +40,13 @@ export default function StudyWorkspace({ document, onBack }) {
   const [generatingCards, setGeneratingCards] = useState(false);
   const [cardCount, setCardCount] = useState(8);
 
-  // 1. Initial Load for Document
   useEffect(() => {
     loadChatHistory();
     loadQuizzes();
     loadFlashcardSets();
+    if (document.summary) {
+      setSummary(document.summary);
+    }
   }, [document.id]);
 
   const loadChatHistory = async () => {
@@ -83,7 +91,6 @@ export default function StudyWorkspace({ document, onBack }) {
     setQuestion("");
     setChatError("");
 
-    // Optimistically append user message
     const tempUserMsg = {
       id: Date.now(),
       role: "user",
@@ -120,6 +127,37 @@ export default function StudyWorkspace({ document, onBack }) {
     }
   };
 
+  // --- Summarization Handlers ---
+  const handleGenerateSummary = async () => {
+    setSummaryLoading(true);
+    try {
+      const res = await api.study.summarize(document.id);
+      setSummary(res);
+    } catch (err) {
+      alert(err.message || "Failed to generate summary");
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  const handleCopySummary = () => {
+    if (!summary) return;
+    const text = `# ${document.title} - AI Summary\n\n## Executive Summary\n${summary.executive_summary}\n\n## Key Concepts\n${summary.key_concepts?.map((c) => `- ${c}`).join("\n")}\n\n## High-Yield Takeaways\n${summary.takeaways?.map((t) => `- ${t}`).join("\n")}`;
+    navigator.clipboard.writeText(text);
+    setCopiedSummary(true);
+    setTimeout(() => setCopiedSummary(false), 2000);
+  };
+
+  const handleDownloadNotes = () => {
+    const text = `# Study Notes: ${document.title}\n\nGenerated with StudyMate AI Assistant\nDate: ${new Date().toLocaleDateString()}\n\n---\n\n## 1. Executive Summary\n${summary?.executive_summary || "No summary generated yet."}\n\n## 2. Key Concepts & Formulas\n${summary?.key_concepts?.map((c) => `- ${c}`).join("\n") || "N/A"}\n\n## 3. High-Yield Exam Takeaways\n${summary?.takeaways?.map((t) => `- ${t}`).join("\n") || "N/A"}\n\n---\n\n## 4. Q&A Study History\n${messages.map((m) => `**${m.role === "user" ? "Q" : "A"}:** ${m.content}`).join("\n\n")}`;
+    const blob = new Blob([text], { type: "text/markdown;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = window.document.createElement("a");
+    link.href = url;
+    link.download = `${document.title.replace(/\s+/g, "_")}_Study_Notes.md`;
+    link.click();
+  };
+
   // --- Quiz Handlers ---
   const handleGenerateQuiz = async () => {
     setGeneratingQuiz(true);
@@ -137,7 +175,7 @@ export default function StudyWorkspace({ document, onBack }) {
   };
 
   const handleSelectQuizOption = (qIndex, option) => {
-    if (quizResult) return; // Prevent change after submit
+    if (quizResult) return;
     setQuizAnswers((prev) => ({
       ...prev,
       [qIndex]: option,
@@ -162,6 +200,10 @@ export default function StudyWorkspace({ document, onBack }) {
     } finally {
       setQuizSubmitting(false);
     }
+  };
+
+  const handlePrintQuiz = () => {
+    window.print();
   };
 
   // --- Flashcard Handlers ---
@@ -221,68 +263,103 @@ export default function StudyWorkspace({ document, onBack }) {
           </div>
         </div>
 
-        {/* Tab Navigation Controls */}
-        <div style={{
-          display: "flex",
-          background: "rgba(15, 23, 42, 0.7)",
-          padding: "4px",
-          borderRadius: "var(--radius-md)",
-          border: "1px solid var(--border-subtle)",
-          gap: "4px"
-        }}>
+        {/* Action Controls & Tab Switcher */}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          {/* Download Notes Button */}
           <button
-            onClick={() => setActiveTab("chat")}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "var(--radius-sm)",
-              fontWeight: "600",
-              fontSize: "0.9rem",
-              background: activeTab === "chat" ? "var(--primary)" : "transparent",
-              color: activeTab === "chat" ? "#fff" : "var(--text-muted)",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px"
-            }}
+            onClick={handleDownloadNotes}
+            className="btn-secondary"
+            style={{ padding: "8px 12px", fontSize: "0.85rem" }}
+            title="Download Study Notes as Markdown"
           >
-            <MessageSquare size={16} />
-            <span>AI Chat</span>
+            <Download size={16} />
+            <span>Export Notes</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab("quiz")}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "var(--radius-sm)",
-              fontWeight: "600",
-              fontSize: "0.9rem",
-              background: activeTab === "quiz" ? "var(--primary)" : "transparent",
-              color: activeTab === "quiz" ? "#fff" : "var(--text-muted)",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px"
-            }}
-          >
-            <HelpCircle size={16} />
-            <span>MCQ Quiz</span>
-          </button>
+          {/* Tab Navigation */}
+          <div style={{
+            display: "flex",
+            background: "var(--bg-card)",
+            padding: "4px",
+            borderRadius: "var(--radius-md)",
+            border: "1px solid var(--border-subtle)",
+            gap: "4px"
+          }}>
+            <button
+              onClick={() => setActiveTab("chat")}
+              style={{
+                padding: "8px 14px",
+                borderRadius: "var(--radius-sm)",
+                fontWeight: "600",
+                fontSize: "0.85rem",
+                background: activeTab === "chat" ? "var(--primary)" : "transparent",
+                color: activeTab === "chat" ? "#fff" : "var(--text-muted)",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px"
+              }}
+            >
+              <MessageSquare size={15} />
+              <span>AI Chat</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab("flashcards")}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "var(--radius-sm)",
-              fontWeight: "600",
-              fontSize: "0.9rem",
-              background: activeTab === "flashcards" ? "var(--primary)" : "transparent",
-              color: activeTab === "flashcards" ? "#fff" : "var(--text-muted)",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px"
-            }}
-          >
-            <Layers size={16} />
-            <span>Flashcards</span>
-          </button>
+            <button
+              onClick={() => {
+                setActiveTab("summary");
+                if (!summary) handleGenerateSummary();
+              }}
+              style={{
+                padding: "8px 14px",
+                borderRadius: "var(--radius-sm)",
+                fontWeight: "600",
+                fontSize: "0.85rem",
+                background: activeTab === "summary" ? "var(--primary)" : "transparent",
+                color: activeTab === "summary" ? "#fff" : "var(--text-muted)",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px"
+              }}
+            >
+              <BookOpen size={15} />
+              <span>AI Summary</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("quiz")}
+              style={{
+                padding: "8px 14px",
+                borderRadius: "var(--radius-sm)",
+                fontWeight: "600",
+                fontSize: "0.85rem",
+                background: activeTab === "quiz" ? "var(--primary)" : "transparent",
+                color: activeTab === "quiz" ? "#fff" : "var(--text-muted)",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px"
+              }}
+            >
+              <HelpCircle size={15} />
+              <span>MCQ Quiz</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("flashcards")}
+              style={{
+                padding: "8px 14px",
+                borderRadius: "var(--radius-sm)",
+                fontWeight: "600",
+                fontSize: "0.85rem",
+                background: activeTab === "flashcards" ? "var(--primary)" : "transparent",
+                color: activeTab === "flashcards" ? "#fff" : "var(--text-muted)",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px"
+              }}
+            >
+              <Layers size={15} />
+              <span>Flashcards</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -304,7 +381,7 @@ export default function StudyWorkspace({ document, onBack }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            background: "rgba(15, 23, 42, 0.4)"
+            background: "var(--bg-card)"
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <Sparkles size={18} color="var(--primary)" />
@@ -375,9 +452,7 @@ export default function StudyWorkspace({ document, onBack }) {
                   ].map((sampleQ, idx) => (
                     <button
                       key={idx}
-                      onClick={() => {
-                        setQuestion(sampleQ);
-                      }}
+                      onClick={() => setQuestion(sampleQ)}
                       className="btn-secondary"
                       style={{
                         padding: "10px 14px",
@@ -406,10 +481,10 @@ export default function StudyWorkspace({ document, onBack }) {
                     borderRadius: "16px",
                     background: msg.role === "user"
                       ? "linear-gradient(135deg, var(--primary), #4f46e5)"
-                      : "rgba(30, 41, 59, 0.7)",
-                    color: "#fff",
+                      : "var(--bg-glass)",
+                    color: msg.role === "user" ? "#fff" : "var(--text-main)",
                     border: msg.role === "assistant" ? "1px solid var(--border-subtle)" : "none",
-                    boxShadow: "0 4px 14px rgba(0,0,0,0.2)",
+                    boxShadow: "0 4px 14px rgba(0,0,0,0.1)",
                     fontSize: "0.95rem",
                     lineHeight: "1.6",
                     whiteSpace: "pre-wrap"
@@ -421,7 +496,7 @@ export default function StudyWorkspace({ document, onBack }) {
                       <div style={{
                         marginTop: "12px",
                         paddingTop: "10px",
-                        borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+                        borderTop: "1px solid var(--border-subtle)",
                         display: "flex",
                         flexWrap: "wrap",
                         gap: "6px",
@@ -435,13 +510,13 @@ export default function StudyWorkspace({ document, onBack }) {
                             key={sIdx}
                             title={s.content}
                             style={{
-                              background: "rgba(99, 102, 241, 0.25)",
-                              color: "#c7d2fe",
+                              background: "rgba(99, 102, 241, 0.2)",
+                              color: "var(--primary)",
                               padding: "2px 8px",
                               borderRadius: "6px",
                               fontSize: "0.75rem",
                               fontWeight: "600",
-                              border: "1px solid rgba(99, 102, 241, 0.4)"
+                              border: "1px solid var(--border-highlight)"
                             }}
                           >
                             Page {s.page_number || "1"}
@@ -467,7 +542,7 @@ export default function StudyWorkspace({ document, onBack }) {
             onSubmit={handleSendMessage}
             style={{
               padding: "16px 20px",
-              background: "rgba(15, 23, 42, 0.6)",
+              background: "var(--bg-card)",
               borderTop: "1px solid var(--border-subtle)",
               display: "flex",
               gap: "12px"
@@ -494,7 +569,121 @@ export default function StudyWorkspace({ document, onBack }) {
       )}
 
       {/* ==================================================== */}
-      {/* 📝 TAB 2: INTERACTIVE MCQ QUIZ MODE                  */}
+      {/* 📄 TAB 2: ONE-CLICK AI SUMMARY                       */}
+      {/* ==================================================== */}
+      {activeTab === "summary" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+          {/* Summary Toolbar */}
+          <div className="glass-panel" style={{
+            padding: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "16px"
+          }}>
+            <div>
+              <h3>AI Document Summary</h3>
+              <p style={{ color: "var(--text-dim)", fontSize: "0.85rem" }}>
+                Executive overview, key concepts, formulas, and high-yield takeaways
+              </p>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              {summary && (
+                <button onClick={handleCopySummary} className="btn-secondary" style={{ padding: "8px 14px" }}>
+                  {copiedSummary ? <Check size={16} color="#10b981" /> : <Copy size={16} />}
+                  <span>{copiedSummary ? "Copied" : "Copy Summary"}</span>
+                </button>
+              )}
+
+              <button
+                onClick={handleGenerateSummary}
+                className="btn-primary"
+                disabled={summaryLoading}
+              >
+                {summaryLoading ? (
+                  <>
+                    <RefreshCw className="animate-spin" size={16} />
+                    <span>Analyzing Document...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} />
+                    <span>{summary ? "Regenerate Summary" : "Generate Summary"}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Summary Content Cards */}
+          {summaryLoading ? (
+            <div className="glass-panel" style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-dim)" }}>
+              <Sparkles className="animate-spin" size={32} color="var(--primary)" style={{ marginBottom: "12px" }} />
+              <h3>Synthesizing Document Summary...</h3>
+              <p style={{ fontSize: "0.9rem", marginTop: "6px" }}>Extracting key concepts, formulas, and takeaways</p>
+            </div>
+          ) : summary ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              {/* Executive Overview */}
+              <div className="glass-panel" style={{ padding: "26px" }}>
+                <h4 style={{ color: "var(--primary)", fontSize: "1.1rem", marginBottom: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Bookmark size={18} />
+                  Executive Overview
+                </h4>
+                <p style={{ lineHeight: "1.75", fontSize: "0.98rem", color: "var(--text-main)", whiteSpace: "pre-wrap" }}>
+                  {summary.executive_summary}
+                </p>
+              </div>
+
+              {/* Two Column Grid: Concepts & Takeaways */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+                {/* Key Concepts */}
+                <div className="glass-panel" style={{ padding: "24px" }}>
+                  <h4 style={{ color: "#a855f7", fontSize: "1.05rem", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <Sparkles size={18} />
+                    Core Concepts & Formulas
+                  </h4>
+                  <ul style={{ paddingLeft: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {summary.key_concepts?.map((concept, cIdx) => (
+                      <li key={cIdx} style={{ fontSize: "0.92rem", lineHeight: "1.6", color: "var(--text-main)" }}>
+                        {concept}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* High-Yield Exam Takeaways */}
+                <div className="glass-panel" style={{ padding: "24px" }}>
+                  <h4 style={{ color: "#10b981", fontSize: "1.05rem", marginBottom: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <Award size={18} />
+                    High-Yield Exam Takeaways
+                  </h4>
+                  <ul style={{ paddingLeft: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {summary.takeaways?.map((takeaway, tIdx) => (
+                      <li key={tIdx} style={{ fontSize: "0.92rem", lineHeight: "1.6", color: "var(--text-main)" }}>
+                        {takeaway}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="glass-panel" style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-dim)" }}>
+              <BookOpen size={48} color="var(--primary)" style={{ opacity: 0.5, marginBottom: "16px" }} />
+              <h3>One-Click AI Summary</h3>
+              <p style={{ marginTop: "6px", maxWidth: "420px", margin: "6px auto 0" }}>
+                Click "Generate Summary" above to get an instant academic executive summary of this entire PDF!
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* 📝 TAB 3: INTERACTIVE MCQ QUIZ MODE                  */}
       {/* ==================================================== */}
       {activeTab === "quiz" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -514,7 +703,14 @@ export default function StudyWorkspace({ document, onBack }) {
               </p>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              {activeQuiz && (
+                <button onClick={handlePrintQuiz} className="btn-secondary" style={{ padding: "8px 12px" }}>
+                  <Printer size={16} />
+                  <span>Print Quiz</span>
+                </button>
+              )}
+
               <select
                 className="input-field"
                 style={{ width: "auto", padding: "8px 12px" }}
@@ -545,12 +741,12 @@ export default function StudyWorkspace({ document, onBack }) {
                 {generatingQuiz ? (
                   <>
                     <RefreshCw className="animate-spin" size={16} />
-                    <span>Generating Quiz...</span>
+                    <span>Generating...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles size={16} />
-                    <span>Generate New Quiz</span>
+                    <span>Generate Quiz</span>
                   </>
                 )}
               </button>
@@ -586,8 +782,8 @@ export default function StudyWorkspace({ document, onBack }) {
                 {quizResult && (
                   <div style={{
                     background: quizResult.score_percentage >= 70 ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
-                    color: quizResult.score_percentage >= 70 ? "#34d399" : "#fbbf24",
-                    border: `1px solid ${quizResult.score_percentage >= 70 ? "#059669" : "#d97706"}`,
+                    color: quizResult.score_percentage >= 70 ? "#10b981" : "#f59e0b",
+                    border: `1px solid ${quizResult.score_percentage >= 70 ? "#10b981" : "#f59e0b"}`,
                     padding: "8px 18px",
                     borderRadius: "var(--radius-full)",
                     fontWeight: "700",
@@ -610,13 +806,13 @@ export default function StudyWorkspace({ document, onBack }) {
                     <div
                       key={qIdx}
                       style={{
-                        background: "rgba(15, 23, 42, 0.4)",
+                        background: "var(--bg-glass)",
                         padding: "24px",
                         borderRadius: "var(--radius-md)",
                         border: reviewItem
                           ? reviewItem.is_correct
-                            ? "1px solid rgba(16, 185, 129, 0.4)"
-                            : "1px solid rgba(244, 63, 94, 0.4)"
+                            ? "1px solid rgba(16, 185, 129, 0.5)"
+                            : "1px solid rgba(244, 63, 94, 0.5)"
                           : "1px solid var(--border-subtle)"
                       }}
                     >
@@ -631,7 +827,7 @@ export default function StudyWorkspace({ document, onBack }) {
                         }}>
                           Q{qIdx + 1}
                         </span>
-                        <h4 style={{ fontSize: "1.1rem", fontWeight: "600", flex: 1 }}>
+                        <h4 style={{ fontSize: "1.1rem", fontWeight: "600", flex: 1, color: "var(--text-main)" }}>
                           {q.question}
                         </h4>
                       </div>
@@ -640,7 +836,7 @@ export default function StudyWorkspace({ document, onBack }) {
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                         {q.options?.map((opt, optIdx) => {
                           const isSelected = quizAnswers[qIdx] === opt;
-                          let optionBg = isSelected ? "rgba(99, 102, 241, 0.2)" : "rgba(30, 41, 59, 0.5)";
+                          let optionBg = isSelected ? "rgba(99, 102, 241, 0.2)" : "var(--bg-card)";
                           let optionBorder = isSelected ? "var(--primary)" : "var(--border-subtle)";
 
                           if (quizResult) {
@@ -663,7 +859,7 @@ export default function StudyWorkspace({ document, onBack }) {
                                 borderRadius: "var(--radius-md)",
                                 background: optionBg,
                                 border: `1px solid ${optionBorder}`,
-                                color: "#fff",
+                                color: "var(--text-main)",
                                 textAlign: "left",
                                 fontSize: "0.95rem",
                                 display: "flex",
@@ -673,8 +869,8 @@ export default function StudyWorkspace({ document, onBack }) {
                               }}
                             >
                               <span>{opt}</span>
-                              {quizResult && opt === q.answer && <CheckCircle2 size={18} color="#34d399" />}
-                              {quizResult && isSelected && !reviewItem?.is_correct && <XCircle size={18} color="#fb7185" />}
+                              {quizResult && opt === q.answer && <CheckCircle2 size={18} color="#10b981" />}
+                              {quizResult && isSelected && !reviewItem?.is_correct && <XCircle size={18} color="#f43f5e" />}
                             </button>
                           );
                         })}
@@ -686,9 +882,9 @@ export default function StudyWorkspace({ document, onBack }) {
                           marginTop: "16px",
                           padding: "12px 16px",
                           borderRadius: "var(--radius-sm)",
-                          background: reviewItem.is_correct ? "rgba(16, 185, 129, 0.1)" : "rgba(244, 63, 94, 0.1)",
+                          background: reviewItem.is_correct ? "rgba(16, 185, 129, 0.15)" : "rgba(244, 63, 94, 0.15)",
                           fontSize: "0.85rem",
-                          color: reviewItem.is_correct ? "#a7f3d0" : "#fecdd3"
+                          color: "var(--text-main)"
                         }}>
                           <strong>Explanation: </strong> {reviewItem.explanation || "No explanation provided."}
                         </div>
@@ -729,7 +925,7 @@ export default function StudyWorkspace({ document, onBack }) {
               <HelpCircle size={48} color="var(--primary)" style={{ opacity: 0.5, marginBottom: "16px" }} />
               <h3>No Quizzes Generated Yet</h3>
               <p style={{ color: "var(--text-dim)", marginTop: "6px", maxWidth: "400px", margin: "6px auto 0" }}>
-                Click "Generate New Quiz" above to let AI create an instant MCQ practice test for you!
+                Click "Generate Quiz" above to let AI create an instant MCQ practice test for you!
               </p>
             </div>
           )}
@@ -737,7 +933,7 @@ export default function StudyWorkspace({ document, onBack }) {
       )}
 
       {/* ==================================================== */}
-      {/* 🎴 TAB 3: 3D FLASHCARDS DECK                         */}
+      {/* 🎴 TAB 4: 3D FLASHCARDS DECK                         */}
       {/* ==================================================== */}
       {activeTab === "flashcards" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -826,7 +1022,6 @@ export default function StudyWorkspace({ document, onBack }) {
                 <div className="flip-card-inner">
                   {/* Front: Question / Concept */}
                   <div className="flip-card-front glass-panel" style={{
-                    background: "linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95))",
                     border: "1px solid var(--border-highlight)"
                   }}>
                     <span style={{
@@ -839,7 +1034,7 @@ export default function StudyWorkspace({ document, onBack }) {
                     }}>
                       Question / Key Concept
                     </span>
-                    <h2 style={{ fontSize: "1.5rem", textAlign: "center", lineHeight: "1.4" }}>
+                    <h2 style={{ fontSize: "1.5rem", textAlign: "center", lineHeight: "1.4", color: "var(--text-main)" }}>
                       {activeSet.cards[currentCardIndex]?.front}
                     </h2>
                     <span style={{
@@ -851,26 +1046,26 @@ export default function StudyWorkspace({ document, onBack }) {
                       gap: "6px"
                     }}>
                       <RotateCw size={14} />
-                      Click or press Space to reveal answer
+                      Click to reveal answer
                     </span>
                   </div>
 
                   {/* Back: Answer / Definition */}
                   <div className="flip-card-back glass-panel" style={{
-                    background: "linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(15, 23, 42, 0.95))",
+                    background: "linear-gradient(135deg, rgba(99, 102, 241, 0.15), var(--bg-card))",
                     border: "1px solid var(--secondary)"
                   }}>
                     <span style={{
                       fontSize: "0.75rem",
                       textTransform: "uppercase",
                       letterSpacing: "0.1em",
-                      color: "#c084fc",
+                      color: "var(--secondary)",
                       fontWeight: "700",
                       marginBottom: "16px"
                     }}>
                       Answer / Explanation
                     </span>
-                    <p style={{ fontSize: "1.2rem", textAlign: "center", lineHeight: "1.5", color: "#f3f4f6" }}>
+                    <p style={{ fontSize: "1.2rem", textAlign: "center", lineHeight: "1.5", color: "var(--text-main)" }}>
                       {activeSet.cards[currentCardIndex]?.back}
                     </p>
                     <span style={{

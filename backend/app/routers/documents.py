@@ -8,7 +8,7 @@ from app.config import settings
 from app.database import get_db
 from app.models.document import Document, DocumentChunk
 from app.models.user import User
-from app.schemas.document import DocumentDetailResponse, DocumentResponse
+from app.schemas.document import DocumentDetailResponse, DocumentResponse, DocumentTagUpdate
 from app.services.pdf_service import extract_text_and_chunks
 from app.services.vector_service import get_embeddings_batch
 from app.utils.deps import get_current_user
@@ -25,9 +25,11 @@ router = APIRouter(prefix="/documents", tags=["Documents & RAG"])
 async def upload_document(
     file: UploadFile = File(...),
     title: Optional[str] = Form(None),
+    tags: Optional[str] = Form(None),  # Comma separated e.g. "Biology, Chapter 4"
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+
     """
     Upload a study document (PDF), parse pages, generate OpenAI vector embeddings,
     and save chunks to PostgreSQL with pgvector for instant RAG search.
@@ -105,6 +107,9 @@ async def upload_document(
         # Fallback empty embeddings if key is not yet set (allows dev testing)
         embeddings = [None] * len(chunks_data)
 
+    # Parse tags
+    tags_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+
     # Create Document record
     doc_title = title.strip() if title and title.strip() else file.filename.replace(".pdf", "").replace(".PDF", "")
     new_doc = Document(
@@ -114,6 +119,7 @@ async def upload_document(
         file_path=saved_file_path,
         file_size=file_size,
         num_pages=num_pages,
+        tags=tags_list,
     )
     db.add(new_doc)
     db.commit()
@@ -140,10 +146,12 @@ async def upload_document(
         filename=new_doc.filename,
         file_size=new_doc.file_size,
         num_pages=new_doc.num_pages,
+        tags=new_doc.tags or [],
         created_at=new_doc.created_at,
         updated_at=new_doc.updated_at,
         total_chunks=len(chunk_objects),
     )
+
 
 
 @router.get(
@@ -240,3 +248,33 @@ def delete_document(
     db.commit()
 
     return {"message": "Document and all related study materials successfully deleted."}
+
+
+@router.patch(
+    "/{document_id}/tags",
+    response_model=DocumentResponse,
+    summary="Update document subject/course tags",
+)
+def update_document_tags(
+    document_id: int,
+    tag_in: DocumentTagUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Add or update subject and course tags for a document."""
+    doc = (
+        db.query(Document)
+        .filter(Document.id == document_id, Document.user_id == current_user.id)
+        .first()
+    )
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+
+    doc.tags = tag_in.tags
+    db.commit()
+    db.refresh(doc)
+    return doc
+
