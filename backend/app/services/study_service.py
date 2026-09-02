@@ -1,10 +1,9 @@
 import json
 from typing import Any, List
 from sqlalchemy.orm import Session
-from app.config import settings
 from app.models.document import Document, DocumentChunk
 from app.models.study import ChatMessage, FlashcardSet, Quiz
-from app.services.vector_service import get_openai_client, search_similar_chunks
+from app.services.vector_service import get_llm_client, search_similar_chunks
 
 
 def ask_document_question(
@@ -17,13 +16,12 @@ def ask_document_question(
     RAG QA pipeline:
     1. Retrieve top matching chunks using vector similarity.
     2. Build context prompt.
-    3. Call OpenAI chat model.
+    3. Call LLM (Groq / OpenAI).
     4. Store history in ChatMessage table.
     """
     # 1. Retrieve top similar chunks
     similar_chunks = search_similar_chunks(db, document.id, question, top_k=4)
 
-    # Prepare context string and sources payload
     context_parts: list[str] = []
     sources: list[dict[str, Any]] = []
 
@@ -51,10 +49,10 @@ def ask_document_question(
 
     user_prompt = f"Document Title: {document.title}\n\nContext:\n{context_text}\n\nQuestion: {question}"
 
-    # 3. Call OpenAI LLM
-    client = get_openai_client()
+    # 3. Call LLM client
+    client, model_name = get_llm_client()
     response = client.chat.completions.create(
-        model=settings.OPENAI_MODEL,
+        model=model_name,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
@@ -93,9 +91,8 @@ def generate_quiz(
     difficulty: str = "medium",
 ) -> Quiz:
     """
-    Generate an interactive multiple-choice quiz based on the document's content.
+    Generate an interactive multiple-choice quiz based on document content.
     """
-    # Fetch representative chunks
     chunks = (
         db.query(DocumentChunk)
         .filter(DocumentChunk.document_id == document.id)
@@ -110,7 +107,7 @@ def generate_quiz(
     sample_text = "\n\n".join([f"Page {c.page_number}: {c.content}" for c in chunks])
 
     system_prompt = (
-        "You are an expert exam and test creator. Generate a high quality multiple choice quiz "
+        "You are an expert exam creator. Generate a high quality multiple choice quiz "
         "based strictly on the document text provided. Return JSON strictly in the following format:\n"
         "{\n"
         '  "title": "Quiz Title",\n'
@@ -132,9 +129,9 @@ def generate_quiz(
         f"Content:\n{sample_text}"
     )
 
-    client = get_openai_client()
+    client, model_name = get_llm_client()
     response = client.chat.completions.create(
-        model=settings.OPENAI_MODEL,
+        model=model_name,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
@@ -166,7 +163,7 @@ def generate_flashcards(
     num_cards: int = 8,
 ) -> FlashcardSet:
     """
-    Generate study flashcards (Term/Question -> Definition/Answer) from document content.
+    Generate study flashcards from document content.
     """
     chunks = (
         db.query(DocumentChunk)
@@ -201,9 +198,9 @@ def generate_flashcards(
         f"Content:\n{sample_text}"
     )
 
-    client = get_openai_client()
+    client, model_name = get_llm_client()
     response = client.chat.completions.create(
-        model=settings.OPENAI_MODEL,
+        model=model_name,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
