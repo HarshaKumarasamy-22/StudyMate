@@ -100,7 +100,14 @@ export const api = {
       });
       return handleResponse(res);
     },
+    getRecentChats: async () => {
+      const res = await fetch(`${API_BASE_URL}/study/chats/recent`, {
+        headers: getHeaders(),
+      });
+      return handleResponse(res);
+    },
     getChatHistory: async (documentId) => {
+
       const res = await fetch(`${API_BASE_URL}/study/${documentId}/chat/history`, {
         headers: getHeaders(),
       });

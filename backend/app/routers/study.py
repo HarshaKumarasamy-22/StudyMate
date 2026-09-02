@@ -46,6 +46,38 @@ def _get_user_document(db: Session, document_id: int, user_id: int) -> Document:
 # ==========================================
 
 
+@router.get(
+    "/chats/recent",
+    summary="Get recent chat conversations for the current user",
+)
+def get_recent_chats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Retrieve recent chat interactions across documents for sidebar navigation."""
+    # Get last 15 user questions with document metadata
+    messages = (
+        db.query(ChatMessage, Document)
+        .join(Document, ChatMessage.document_id == Document.id)
+        .filter(ChatMessage.user_id == current_user.id, ChatMessage.role == "user")
+        .order_by(ChatMessage.created_at.desc())
+        .limit(15)
+        .all()
+    )
+
+    return [
+        {
+            "id": msg.id,
+            "document_id": doc.id,
+            "document_title": doc.title,
+            "question": msg.content,
+            "created_at": msg.created_at,
+        }
+        for msg, doc in messages
+    ]
+
+
+
 @router.post(
     "/{document_id}/chat",
     response_model=ChatResponse,
