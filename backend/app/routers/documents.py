@@ -3,6 +3,7 @@ import shutil
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
@@ -12,6 +13,7 @@ from app.schemas.document import DocumentDetailResponse, DocumentResponse, Docum
 from app.services.pdf_service import extract_text_and_chunks
 from app.services.vector_service import get_embeddings_batch
 from app.utils.deps import get_current_user
+
 
 router = APIRouter(prefix="/documents", tags=["Documents & RAG"])
 
@@ -214,11 +216,40 @@ def get_document(
     )
 
 
+@router.get(
+    "/{document_id}/file",
+    summary="Get and stream the raw PDF file for inline viewing",
+)
+def get_document_file(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Serve the raw PDF file for inline split-view display in browser."""
+    doc = (
+        db.query(Document)
+        .filter(Document.id == document_id, Document.user_id == current_user.id)
+        .first()
+    )
+    if not doc or not os.path.exists(doc.file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="PDF file not found on disk.",
+        )
+
+    return FileResponse(
+        path=doc.file_path,
+        media_type="application/pdf",
+        filename=doc.filename,
+    )
+
+
 @router.delete(
     "/{document_id}",
     status_code=status.HTTP_200_OK,
     summary="Delete a document and its indexed vectors",
 )
+
 def delete_document(
     document_id: int,
     db: Session = Depends(get_db),

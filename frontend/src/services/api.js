@@ -87,7 +87,16 @@ export const api = {
       });
       return handleResponse(res);
     },
+    getPdfBlob: async (id) => {
+      const res = await fetch(`${API_BASE_URL}/documents/${id}/file`, {
+        headers: getHeaders(),
+      });
+      if (!res.ok) throw new Error("Failed to load PDF file.");
+      const blob = await res.blob();
+      return URL.createObjectURL(blob);
+    },
     delete: async (id) => {
+
       const res = await fetch(`${API_BASE_URL}/documents/${id}`, {
         method: "DELETE",
         headers: getHeaders(),
