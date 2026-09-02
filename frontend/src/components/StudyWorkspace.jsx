@@ -9,6 +9,8 @@ import confetti from "canvas-confetti";
 import { api } from "../services/api";
 import PdfViewer from "./PdfViewer";
 import ChatMessageBubble from "./ChatMessageBubble";
+import VoiceInputButton from "./VoiceInputButton";
+
 
 
 export default function StudyWorkspace({ document, onBack }) {
@@ -540,12 +542,19 @@ export default function StudyWorkspace({ document, onBack }) {
                   background: "var(--bg-card)",
                   borderTop: "1px solid var(--border-subtle)",
                   display: "flex",
-                  gap: "10px"
+                  gap: "10px",
+                  alignItems: "center",
                 }}
               >
+                <VoiceInputButton
+                  onTranscript={(spokenText) => {
+                    setQuestion((prev) => (prev ? `${prev} ${spokenText}` : spokenText));
+                  }}
+                  disabled={chatLoading}
+                />
                 <input
                   type="text"
-                  placeholder="Ask a question about this PDF..."
+                  placeholder="Ask a question about this PDF (or click mic to speak)..."
                   className="input-field"
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
@@ -555,11 +564,12 @@ export default function StudyWorkspace({ document, onBack }) {
                   type="submit"
                   className="btn-primary"
                   disabled={chatLoading || !question.trim()}
-                  style={{ padding: "0 18px" }}
+                  style={{ padding: "0 18px", height: "46px" }}
                 >
                   <Send size={18} />
                 </button>
               </form>
+
             </div>
           )}
 

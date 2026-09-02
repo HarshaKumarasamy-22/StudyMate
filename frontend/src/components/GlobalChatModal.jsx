@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { X, Search, Sparkles, Send, BookOpen, FileText, ArrowRight } from "lucide-react";
 import { api } from "../services/api";
 import MarkdownRenderer from "./MarkdownRenderer";
+import VoiceInputButton from "./VoiceInputButton";
+
 
 
 export default function GlobalChatModal({ isOpen, onClose, onSelectDocument }) {
@@ -95,12 +97,18 @@ export default function GlobalChatModal({ isOpen, onClose, onSelectDocument }) {
 
         {/* Search Input */}
         <form onSubmit={handleGlobalSearch} style={{ padding: "20px 24px", borderBottom: "1px solid var(--border-subtle)" }}>
-          <div style={{ display: "flex", gap: "10px" }}>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            <VoiceInputButton
+              onTranscript={(spokenText) => {
+                setQuestion((prev) => (prev ? `${prev} ${spokenText}` : spokenText));
+              }}
+              disabled={loading}
+            />
             <div style={{ position: "relative", flex: 1 }}>
               <Search size={18} color="var(--text-dim)" style={{ position: "absolute", left: "14px", top: "14px" }} />
               <input
                 type="text"
-                placeholder="Ask any question across your uploaded documents..."
+                placeholder="Ask any question across your uploaded documents (or click mic to speak)..."
                 className="input-field"
                 style={{ paddingLeft: "42px" }}
                 value={question}
@@ -112,12 +120,13 @@ export default function GlobalChatModal({ isOpen, onClose, onSelectDocument }) {
               type="submit"
               className="btn-primary"
               disabled={loading || !question.trim()}
-              style={{ padding: "0 24px" }}
+              style={{ padding: "0 24px", height: "46px" }}
             >
               {loading ? "Searching..." : <Send size={18} />}
             </button>
           </div>
         </form>
+
 
         {/* Content / Results */}
         <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>

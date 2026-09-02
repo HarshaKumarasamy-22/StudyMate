@@ -1,15 +1,52 @@
-import React, { useState } from "react";
-import { Copy, Check, Sparkles, User, FileText } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Copy, Check, Sparkles, Volume2, VolumeX } from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
 
 export default function ChatMessageBubble({ msg, onPageClick }) {
   const [copied, setCopied] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const isUser = msg.role === "user";
+
+  useEffect(() => {
+    return () => {
+      if (isPlayingAudio && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [isPlayingAudio]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(msg.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleToggleSpeech = () => {
+    if (!window.speechSynthesis) {
+      alert("Text-to-speech is not supported in this browser.");
+      return;
+    }
+
+    if (isPlayingAudio) {
+      window.speechSynthesis.cancel();
+      setIsPlayingAudio(false);
+    } else {
+      window.speechSynthesis.cancel(); // Stop any other playing utterance
+      // Strip markdown symbols for speech
+      const cleanText = msg.content
+        .replace(/[*#_`~[\]]/g, "")
+        .replace(/https?:\/\/\S+/g, "");
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      utterance.onend = () => setIsPlayingAudio(false);
+      utterance.onerror = () => setIsPlayingAudio(false);
+
+      window.speechSynthesis.speak(utterance);
+      setIsPlayingAudio(true);
+    }
   };
 
   return (
@@ -34,10 +71,9 @@ export default function ChatMessageBubble({ msg, onPageClick }) {
           boxShadow: "0 4px 14px rgba(0,0,0,0.05)",
           fontSize: "0.92rem",
           position: "relative",
-          group: "message-bubble",
         }}
       >
-        {/* Assistant Header & Copy Button */}
+        {/* Assistant Header Toolbar */}
         {!isUser && (
           <div
             style={{
@@ -54,23 +90,47 @@ export default function ChatMessageBubble({ msg, onPageClick }) {
               <span>StudyMate AI</span>
             </div>
 
-            <button
-              onClick={handleCopy}
-              className="btn-secondary"
-              style={{
-                padding: "4px 8px",
-                fontSize: "0.75rem",
-                borderRadius: "6px",
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                background: "var(--bg-card)",
-              }}
-              title="Copy answer text"
-            >
-              {copied ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
-              <span>{copied ? "Copied!" : "Copy"}</span>
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              {/* Listen / Speech Button */}
+              <button
+                onClick={handleToggleSpeech}
+                className="btn-secondary"
+                style={{
+                  padding: "4px 8px",
+                  fontSize: "0.75rem",
+                  borderRadius: "6px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  background: isPlayingAudio ? "var(--primary-glow)" : "var(--bg-card)",
+                  borderColor: isPlayingAudio ? "var(--border-highlight)" : "var(--border-subtle)",
+                  color: isPlayingAudio ? "var(--primary)" : "var(--text-main)",
+                }}
+                title={isPlayingAudio ? "Stop Audio" : "Listen to Answer (Text-to-Speech)"}
+              >
+                {isPlayingAudio ? <VolumeX size={13} color="var(--primary)" /> : <Volume2 size={13} />}
+                <span>{isPlayingAudio ? "Stop" : "Listen"}</span>
+              </button>
+
+              {/* Copy Button */}
+              <button
+                onClick={handleCopy}
+                className="btn-secondary"
+                style={{
+                  padding: "4px 8px",
+                  fontSize: "0.75rem",
+                  borderRadius: "6px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  background: "var(--bg-card)",
+                }}
+                title="Copy answer text"
+              >
+                {copied ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
+                <span>{copied ? "Copied!" : "Copy"}</span>
+              </button>
+            </div>
           </div>
         )}
 
