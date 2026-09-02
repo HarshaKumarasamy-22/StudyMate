@@ -13,6 +13,20 @@ from app.schemas.document import (
     DocumentDetailResponse,
     DocumentChunkResponse,
 )
+from app.schemas.study import (
+    ChatQueryRequest,
+    ChatSourceItem,
+    ChatResponse,
+    ChatMessageResponse,
+    QuizQuestion,
+    QuizGenerateRequest,
+    QuizResponse,
+    QuizSubmitRequest,
+    QuizScoreResult,
+    FlashcardItem,
+    FlashcardGenerateRequest,
+    FlashcardSetResponse,
+)
 
 __all__ = [
     "UserBase",
@@ -26,4 +40,16 @@ __all__ = [
     "DocumentResponse",
     "DocumentDetailResponse",
     "DocumentChunkResponse",
+    "ChatQueryRequest",
+    "ChatSourceItem",
+    "ChatResponse",
+    "ChatMessageResponse",
+    "QuizQuestion",
+    "QuizGenerateRequest",
+    "QuizResponse",
+    "QuizSubmitRequest",
+    "QuizScoreResult",
+    "FlashcardItem",
+    "FlashcardGenerateRequest",
+    "FlashcardSetResponse",
 ]
